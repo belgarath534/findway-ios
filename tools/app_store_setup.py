@@ -272,10 +272,22 @@ def fill_listing():
     return ok
 
 
+def probe():
+    """Lists the app settings Apple's API exposes (names and values, no secrets)."""
+    app = find_app(BUNDLE_ID)
+    full = call("GET", f"/v1/apps/{app['id']}")["data"]
+    print("App attributes:")
+    for k, v in sorted(full["attributes"].items()):
+        print(f"  {k} = {v!r}"[:200])
+    print("App relationships:", ", ".join(sorted(full.get("relationships", {}))))
+
+
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else ""
     if mode == "profile":
         make_profile()
+    elif mode == "probe":
+        probe()
     elif mode == "listing":
         sys.exit(0 if fill_listing() else 1)
     else:

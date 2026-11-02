@@ -65,6 +65,7 @@ workflows:
         script: |
           pip3 install --quiet "pyjwt[crypto]"
           python3 tools/app_store_setup.py listing
+          if [ "$LISTING_MODE" = "probe" ]; then python3 tools/app_store_setup.py probe; fi
 
   findway-testflight:
     name: FindWay TestFlight
