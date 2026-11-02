@@ -17,7 +17,11 @@ final class Speaker {
             let announcement = NSAttributedString(
                 string: text,
                 attributes: [.accessibilitySpeechQueueAnnouncement: NSNumber(value: !interrupt)])
-            UIAccessibility.post(notification: .announcement, argument: announcement)
+            // A short pause so VoiceOver finishes reacting to a button press first;
+            // otherwise it can cut the announcement off and nothing is heard.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                UIAccessibility.post(notification: .announcement, argument: announcement)
+            }
             return
         }
         if interrupt, synthesizer.isSpeaking {

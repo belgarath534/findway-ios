@@ -22,6 +22,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var currentPosition: Point3?
     private var tracking: TrackingCondition = .starting
     private var mapping: MappingCondition = .none
+    /// True once ARKit has said the map is good enough to save at least once.
+    private var hasMappedEnough = false
+    /// Keeps an important message on screen instead of the live tip.
+    private var holdStatusUntil = Date.distantPast
     private var lastMappedAnnouncement: TimeInterval = -.greatestFiniteMagnitude
     /// When continuing an earlier scan, nothing is recorded until ARKit recognizes the home.
     private var hasRecognizedHome: Bool
@@ -77,6 +81,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
         tracking = frame.camera.trackingState.condition
         mapping = frame.worldMappingStatus.condition
+        if hasRecognizedHome, ScanCoach.canSave(mapping) {
+            hasMappedEnough = true
+        }
 
         if tracking == .good {
             if !hasRecognizedHome {
@@ -117,6 +124,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
     /// Only publishes real changes, so the screen isn't redrawn ten times a second.
     private func setStatus(_ text: String) {
+        guard Date() >= holdStatusUntil, !isSaving else { return }
         if statusText != text { statusText = text }
     }
 
@@ -178,33 +186,46 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     func save(completion: @escaping (Bool) -> Void) {
         guard !isSaving else { return }
         guard hasRecognizedHome else {
-            speaker.speak("I haven't recognized your home yet, so there's nothing new to save. Look around slowly first.")
+            explain("I haven't recognized your home yet, so there's nothing new to save. Hold the phone up and look around slowly first.")
             completion(false)
             return
         }
         guard !home.places.isEmpty else {
-            speaker.speak("Mark at least one place before saving, for example your kitchen.")
+            explain("Mark at least one place before saving, for example your kitchen.")
             completion(false)
             return
         }
-        guard ScanCoach.canSave(mapping) else {
-            speaker.speak("There isn't enough mapped yet. Keep walking slowly and look around, then try again.")
+        guard hasMappedEnough || ScanCoach.canSave(mapping) else {
+            explain("There isn't enough mapped yet. Hold the phone up, walk slowly and look around for a bit longer, then try again.")
             completion(false)
             return
         }
 
         isSaving = true
-        speaker.speak("Saving your home.")
-        session.getCurrentWorldMap { [weak self] map, error in
+        explain("Saving. Hold the phone up and look around for a few seconds.")
+        trySaving(attempt: 1, completion: completion)
+    }
+
+    /// ARKit sometimes can't hand over the map right away (for example while the
+    /// phone points at the floor), so try a few times before giving up.
+    private func trySaving(attempt: Int, completion: @escaping (Bool) -> Void) {
+        session.getCurrentWorldMap { [weak self] map, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.isSaving = false
                 guard let map else {
-                    self.speaker.speak("Saving didn't work. Keep scanning for a moment and try again.")
-                    self.haptics.failure()
-                    completion(false)
+                    if attempt < 6 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            self.trySaving(attempt: attempt + 1, completion: completion)
+                        }
+                    } else {
+                        self.isSaving = false
+                        self.haptics.failure()
+                        self.explain("Saving didn't work yet. Your places are still here. Hold the phone up, look around the room for a few seconds, then press Finish and save again.")
+                        completion(false)
+                    }
                     return
                 }
+                self.isSaving = false
                 do {
                     try self.store.save(home: self.home, worldMap: map)
                     self.haptics.success()
@@ -212,11 +233,19 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
                     self.speaker.speak("Saved. Your home has \(count) \(count == 1 ? "place" : "places").")
                     completion(true)
                 } catch {
-                    self.speaker.speak("Saving didn't work: \(error.localizedDescription)")
                     self.haptics.failure()
+                    self.explain("Saving didn't work: \(error.localizedDescription)")
                     completion(false)
                 }
             }
         }
+    }
+
+    /// Says something and keeps it on screen for a while, so a VoiceOver user
+    /// can find it again even if the speech was cut off.
+    private func explain(_ message: String) {
+        holdStatusUntil = Date().addingTimeInterval(8)
+        statusText = message
+        speaker.speak(message)
     }
 }
