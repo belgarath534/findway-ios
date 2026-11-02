@@ -1,0 +1,22 @@
+FindWay helps blind and low vision people find their way around their own home. Made by a blind developer.
+
+SCAN YOUR HOME ONCE
+Hold your iPhone up and walk slowly through your home. FindWay coaches you out loud as you go: it tells you when it's too dark, when to slow down, or when it can't see enough. At the spots that matter to you, like the kitchen, the bathroom door or the front door, give the spot a name.
+
+GET GUIDED TO ANY SAVED PLACE
+Pick a place. FindWay recognizes where you're standing, then guides you there:
+• Spoken directions like "Turn left" and "Straight ahead, 6 steps", or clock directions like "3 o'clock".
+• A guiding ping that sounds like it comes from where you're heading. Put on headphones and follow it with your ears.
+• A light tap when you're facing the right way.
+• On iPhones with LiDAR, a warning when something is close in front of you.
+
+SAFE ROUTES
+FindWay only guides you along paths you actually walked while scanning. It never draws a straight line between rooms, so it won't send you through a wall.
+
+BUILT FOR VOICEOVER
+Every screen is made for VoiceOver, with large buttons and short, clear speech. When VoiceOver is on, FindWay speaks with your own VoiceOver voice and speed.
+
+PRIVATE
+Your scans and places stay on your iPhone. No account, no internet, no tracking, no ads.
+
+FindWay is an extra helper, not a replacement for your cane or guide dog. Always stay careful, especially near stairs.

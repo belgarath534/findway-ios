@@ -1,0 +1,3 @@
+FindWay helps blind and low vision people find their way around their home. Scan your home with the camera, name places like Kitchen, then pick a place and follow spoken directions, a guiding ping and vibrations.
+
+Please test: scanning in bright and dim rooms, marking places, and guided trips between rooms. Tell us anything that felt wrong, confusing, too chatty or too quiet.

@@ -1,0 +1,10 @@
+No sign-in is needed. FindWay is made for blind and low vision people and works fully with VoiceOver.
+
+How to try it:
+1. Open FindWay and choose Scan my home.
+2. Hold the phone up with the back camera facing forward and walk slowly. Spoken tips help you.
+3. Choose Mark this spot and type a name, for example Kitchen. Walk to another spot and mark it too.
+4. Choose Finish and save.
+5. Choose Take me somewhere, pick a place, and follow the spoken directions and the ping sound.
+
+The camera (ARKit) is used only on the device to map the room. Nothing is uploaded and there is no account. iPhones with LiDAR also get warnings about obstacles ahead.

@@ -19,19 +19,16 @@ FindWay is an extra helper, not a replacement for a cane or guide dog.
 | `codemagic.yaml` | The cloud builds. |
 | `docs/TESTING.md` | Step-by-step test scripts to run at home. |
 
-## One-time setup (Apple and Codemagic)
+## Codemagic workflows (all on the free M2 Mac mini)
 
-You've done this before for your games; it's the same steps with a new name.
+1. **FindWay setup**: one time. Registers the bundle ID `com.leoproductions.findway` with Apple and makes the "FindWay App Store" signing profile.
+2. **FindWay check**: runs every test and builds the app without signing. Use it to catch mistakes.
+3. **FindWay TestFlight**: fills in the App Store and TestFlight text, signs the app and uploads it to TestFlight.
+4. **FindWay store listing**: only refills the App Store and TestFlight text.
 
-1. **Apple Developer site → Certificates, Identifiers & Profiles → Identifiers → +.** Add an App ID with bundle ID `com.leoproductions.findway`. No extra capabilities needed.
-2. **App Store Connect → Apps → + → New App.** Name: FindWay (if it's taken, try "FindWay Home"). Bundle ID: `com.leoproductions.findway`. SKU: `findway`.
-3. **Codemagic → Add application** → pick the `findway-ios` repo → it finds `codemagic.yaml`.
-4. **Codemagic → Team settings → Code signing identities → iOS provisioning profiles → Fetch profiles**, and get an **App Store** profile for `com.leoproductions.findway` (create it on the Apple site first if Codemagic doesn't list it). It must use your existing distribution certificate ("Accessible Backrooms Distribution").
+You only do one thing by hand: in App Store Connect, create the app (New App, name FindWay, bundle ID `com.leoproductions.findway`, SKU `findway`).
 
-## Building
-
-- **FindWay check (tests + build)**: runs every test and compiles the app. No signing needed, so you can run it right after step 3. If it fails, send the log to Claude.
-- **FindWay TestFlight**: signed build that uploads to TestFlight. Install it on your iPhone from the TestFlight app.
+The App Store text lives in `store/en-US/`. Change it there and run "FindWay store listing" again.
 
 ## Running the tests on your own computer
 

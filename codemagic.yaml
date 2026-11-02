@@ -1,12 +1,34 @@
+# FindWay, native iPhone app. All workflows run on the free M2 Mac mini.
+# 1. "FindWay setup" (one time): registers the bundle ID and makes the signing profile.
+# 2. "FindWay check": runs the tests and builds the app without signing.
+# 3. "FindWay TestFlight": fills in the App Store text, signs the app and uploads it.
+# "FindWay store listing" only refills the App Store and TestFlight text.
 workflows:
-  # Quick check: runs the tests and makes sure the app compiles. No signing needed.
-  # Use this first, any time, to catch mistakes before spending a TestFlight build.
-  findway-check:
-    name: FindWay check (tests + build)
-    max_build_duration: 30
+  findway-setup:
+    name: FindWay setup (one time, registers the app ID with Apple)
     instance_type: mac_mini_m2
+    max_build_duration: 10
+    integrations:
+      app_store_connect: Accessible Backrooms
+    scripts:
+      - name: Register com.leoproductions.findway
+        script: |
+          if app-store-connect bundle-ids list --bundle-id-identifier com.leoproductions.findway --strict-match-identifier | grep -q com.leoproductions.findway; then
+            echo "Already registered"
+          else
+            app-store-connect bundle-ids create com.leoproductions.findway --name "FindWay" --platform IOS
+          fi
+      - name: Make the FindWay App Store signing profile
+        script: |
+          pip3 install --quiet "pyjwt[crypto]"
+          python3 tools/app_store_setup.py profile
+
+  findway-check:
+    name: FindWay check (tests + build, no signing)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
     environment:
-      xcode: latest
+      xcode: 27.1
     scripts:
       - name: Run the core tests
         script: |
@@ -16,36 +38,54 @@ workflows:
         script: |
           brew install xcodegen
           xcodegen generate
-      - name: Build the app (unsigned)
+      - name: Build the app for iPhone (unsigned)
         script: |
           set -o pipefail
           xcodebuild \
             -project FindWay.xcodeproj \
             -scheme FindWay \
-            -configuration Debug \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
             -derivedDataPath "$CM_BUILD_DIR/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | tee /tmp/xcodebuild_logs_build.log
+            clean build 2>&1 | tee /tmp/xcodebuild.log | grep -E "error:|warning: .*FindWay|BUILD (SUCCEEDED|FAILED)"
     artifacts:
-      - /tmp/xcodebuild_logs_build.log
+      - /tmp/xcodebuild.log
 
-  # Signed build that goes to TestFlight, so you can install it on your iPhone.
+  findway-store-listing:
+    name: FindWay store listing (App Store + TestFlight text)
+    instance_type: mac_mini_m2
+    max_build_duration: 10
+    integrations:
+      app_store_connect: Accessible Backrooms
+    scripts:
+      - name: Fill in the App Store and TestFlight text
+        script: |
+          pip3 install --quiet "pyjwt[crypto]"
+          python3 tools/app_store_setup.py listing
+
   findway-testflight:
     name: FindWay TestFlight
-    max_build_duration: 60
     instance_type: mac_mini_m2
+    max_build_duration: 60
     integrations:
       app_store_connect: Accessible Backrooms
     environment:
+      xcode: 27.1
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.leoproductions.findway
-      xcode: latest
+        # Codemagic needs one stored profile here to install the signing certificate;
+        # the FindWay profile itself is downloaded from Apple in the step below.
+        provisioning_profiles:
+          - Dungeon Descent Live Activity App Store
+        certificates:
+          - Accessible Backrooms Distribution
     scripts:
+      - name: Fill in the App Store and TestFlight text
+        script: |
+          pip3 install --quiet "pyjwt[crypto]"
+          python3 tools/app_store_setup.py listing || echo "Listing text not filled in; the build continues."
       - name: Run the core tests
         script: |
           cd FindWayCore
@@ -54,13 +94,20 @@ workflows:
         script: |
           brew install xcodegen
           xcodegen generate
-      - name: Set build number
+      - name: Get the App Store profile from Apple
         script: |
-          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/" FindWay.xcodeproj/project.pbxproj
-          grep -m1 CURRENT_PROJECT_VERSION FindWay.xcodeproj/project.pbxproj
-      - name: Use the App Store signing profile
+          # Uses the App Store Connect key from the integration above.
+          DEST="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$DEST"
+          app-store-connect profiles list --type IOS_APP_STORE --state ACTIVE \
+            --name "FindWay App Store" --save --profiles-dir "$DEST"
+          ls "$DEST"
+      - name: Use the App Store signing profiles
         script: |
           xcode-project use-profiles
+      - name: Set build number
+        script: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" FindWay.xcodeproj/project.pbxproj
       - name: Build signed IPA
         script: |
           xcode-project build-ipa \
@@ -72,4 +119,4 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: false  # internal testers get every build anyway
+        submit_to_testflight: false
