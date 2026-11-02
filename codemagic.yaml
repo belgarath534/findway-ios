@@ -1,0 +1,75 @@
+workflows:
+  # Quick check: runs the tests and makes sure the app compiles. No signing needed.
+  # Use this first, any time, to catch mistakes before spending a TestFlight build.
+  findway-check:
+    name: FindWay check (tests + build)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Run the core tests
+        script: |
+          cd FindWayCore
+          swift test
+      - name: Generate the Xcode project
+        script: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build the app (unsigned)
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -project FindWay.xcodeproj \
+            -scheme FindWay \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$CM_BUILD_DIR/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tee /tmp/xcodebuild_logs_build.log
+    artifacts:
+      - /tmp/xcodebuild_logs_build.log
+
+  # Signed build that goes to TestFlight, so you can install it on your iPhone.
+  findway-testflight:
+    name: FindWay TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Accessible Backrooms
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.leoproductions.findway
+      xcode: latest
+    scripts:
+      - name: Run the core tests
+        script: |
+          cd FindWayCore
+          swift test
+      - name: Generate the Xcode project
+        script: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Set build number
+        script: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/" FindWay.xcodeproj/project.pbxproj
+          grep -m1 CURRENT_PROJECT_VERSION FindWay.xcodeproj/project.pbxproj
+      - name: Use the App Store signing profile
+        script: |
+          xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          xcode-project build-ipa \
+            --project FindWay.xcodeproj \
+            --scheme FindWay
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false  # internal testers get every build anyway

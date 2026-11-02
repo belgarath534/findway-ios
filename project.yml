@@ -1,0 +1,52 @@
+# XcodeGen spec. Codemagic turns this into FindWay.xcodeproj on every build,
+# so the Xcode project itself is never stored in git.
+name: FindWay
+options:
+  bundleIdPrefix: com.leoproductions
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+packages:
+  FindWayCore:
+    path: FindWayCore
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    VERSIONING_SYSTEM: apple-generic
+
+targets:
+  FindWay:
+    type: application
+    platform: iOS
+    sources:
+      - path: FindWay
+    dependencies:
+      - package: FindWayCore
+    info:
+      path: FindWay/Info.plist
+      properties:
+        CFBundleDisplayName: FindWay
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities: [arm64, arkit]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIApplicationSupportsIndirectInputEvents: true
+        ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: FindWay uses the camera to map your home and recognize where you are, so it can guide you to the places you saved. Your scans stay on your iPhone.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.leoproductions.findway
+        PRODUCT_NAME: FindWay
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
+    scheme:
+      testTargets: []
