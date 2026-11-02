@@ -24,6 +24,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var mapping: MappingCondition = .none
     /// True once ARKit has said the map is good enough to save at least once.
     private var hasMappedEnough = false
+    private var breadcrumbsSinceTap = 0
+    private var lastProgress: TimeInterval = 0
     /// Keeps an important message on screen instead of the live tip.
     private var holdStatusUntil = Date.distantPast
     private var lastMappedAnnouncement: TimeInterval = -.greatestFiniteMagnitude
@@ -95,6 +97,12 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             currentPosition = position
             if home.trail.walk(to: position) {
                 metersWalked = Int(home.trail.totalLength.rounded())
+                // A light tap about every meter, so you can feel it's recording.
+                breadcrumbsSinceTap += 1
+                if breadcrumbsSinceTap >= 2 {
+                    breadcrumbsSinceTap = 0
+                    haptics.onCourse()
+                }
             }
         } else {
             currentPosition = nil
@@ -105,6 +113,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     private func coach(frame: ARFrame, now: TimeInterval) {
+        if lastProgress == 0 { lastProgress = now }
         if !hasRecognizedHome {
             setStatus("Still looking for your home. Stand where you scanned before and slowly look around. Turn on a light if it's dark.")
             speak(statusText, key: "recognizing", now: now)
@@ -118,7 +127,13 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             speak(tip.message, key: tip.kind.rawValue, now: now)
         } else if tip.kind == .areaMapped, now - lastMappedAnnouncement > 30 {
             lastMappedAnnouncement = now
+            lastProgress = now
             speak(tip.message, key: tip.kind.rawValue, now: now)
+        } else if tracking == .good, now - lastProgress > 20 {
+            // Encouragement while things are going well, so silence never
+            // leaves you wondering whether it's still working.
+            lastProgress = now
+            speak("Good, keep walking. About \(metersWalked) meters scanned.", key: "progress-\(metersWalked)", now: now)
         }
     }
 

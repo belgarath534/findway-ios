@@ -41,6 +41,7 @@ final class NavigationSession: NSObject, ObservableObject, ARSessionDelegate {
     private var startedAt: TimeInterval?
     private var lostSince: TimeInterval?
     private var wasOnCourse = false
+    private var lastCourseTick: TimeInterval = 0
 
     init(store: HomeStore, home: HomeData, destination: Place, options: Options) {
         self.store = store
@@ -191,7 +192,12 @@ final class NavigationSession: NSObject, ObservableObject, ARSessionDelegate {
 
         // A light tap the moment the person turns to face the right way.
         let onCourse = update.direction == .straight
-        if onCourse && !wasOnCourse { haptics.onCourse() }
+        // A steady gentle tick while you're facing the right way. If the ticks
+        // stop, you've turned off course.
+        if onCourse && (!wasOnCourse || now - lastCourseTick >= 1.0) {
+            haptics.onCourse()
+            lastCourseTick = now
+        }
         wasOnCourse = onCourse
 
         checkObstacles(frame: frame, now: now)
