@@ -262,8 +262,13 @@ def fill_listing():
         print("TestFlight: review notes set, no sign-in required"
               + (", contact details copied from your other app." if contact else "."))
     except RuntimeError as e:
-        ok = False
-        print(f"TestFlight: couldn't set the review information: {e}")
+        if "contact" in str(e):
+            # Apple wants the contact name, phone and email before it accepts changes here.
+            print("TestFlight: review notes not updated. Fill in the contact details in "
+                  "TestFlight > Test Information first, then run this again.")
+        else:
+            ok = False
+            print(f"TestFlight: couldn't set the review information: {e}")
     return ok
 
 
