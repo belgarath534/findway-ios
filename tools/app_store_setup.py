@@ -144,6 +144,13 @@ def make_profile():
 
 # ---------------------------------------------------------------- listing
 
+def holder_name(copyright_text):
+    """'Copyright leo productions 2026' or '© 2025 Leo' -> 'leo productions' / 'Leo'."""
+    name = re.sub(r"(?i)\bcopyright\b|©|\(c\)", " ", copyright_text)
+    name = re.sub(r"\b\d{4}(\s*[-–]\s*\d{4})?\b", " ", name)
+    return " ".join(name.split()).strip(" ,.-")
+
+
 def sister_info():
     """Copyright holder and TestFlight contact from another app on the account."""
     holder, contact = None, {}
@@ -156,7 +163,7 @@ def sister_info():
                 versions = call("GET", f"/v1/apps/{app['id']}/appStoreVersions", params={"limit": 5})["data"]
                 for v in versions:
                     c = v["attributes"].get("copyright") or ""
-                    name = re.sub(r"^[©\s]*(\d{4}(\s*[-–]\s*\d{4})?)?\s*", "", c).strip()
+                    name = holder_name(c)
                     if name:
                         holder = name
                         break
@@ -213,9 +220,9 @@ def fill_listing():
             try:
                 call("PATCH", f"/v1/appStoreVersions/{v['id']}", {"data": {
                     "type": "appStoreVersions", "id": v["id"],
-                    "attributes": {"copyright": f"{year} {holder}"},
+                    "attributes": {"copyright": f"Copyright {holder} {year}"},
                 }})
-                print(f"Version {label}: copyright set to \"{year} {holder}\".")
+                print(f"Version {label}: copyright set to \"Copyright {holder} {year}\".")
             except RuntimeError as e:
                 ok = False
                 print(f"Version {label}: couldn't set the copyright: {e}")
