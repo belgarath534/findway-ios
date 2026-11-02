@@ -41,10 +41,41 @@ def token():
     now = int(time.time())
     return jwt.encode(
         {"iss": os.environ[names[0]], "iat": now, "exp": now + 1000, "aud": "appstoreconnect-v1"},
-        os.environ[names[2]],
+        private_key(os.environ[names[2]]),
         algorithm="ES256",
         headers={"kid": os.environ[names[1]], "typ": "JWT"},
     )
+
+
+def private_key(value):
+    """Turns the key from Codemagic into PEM text, whatever shape it arrives in."""
+    value = value.strip()
+    if value.startswith("@file:"):
+        with open(os.path.expanduser(value[6:])) as f:
+            value = f.read().strip()
+    elif value.startswith("@env:"):
+        value = os.environ.get(value[5:], "").strip()
+    value = value.replace("\\n", "\n").strip().strip('"').strip()
+    if "-----BEGIN" not in value:
+        body = "".join(value.split())
+        try:
+            import base64
+            decoded = base64.b64decode(body).decode()
+            if "-----BEGIN" in decoded:
+                return decoded
+        except Exception:
+            pass
+        lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+        value = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(lines) + "\n-----END PRIVATE KEY-----"
+    else:
+        # Rebuild the line breaks in case they were turned into spaces.
+        head, rest = value.split("-----BEGIN", 1)
+        kind = rest.split("-----", 1)[0]
+        body = rest.split("-----", 1)[1].split("-----END", 1)[0]
+        body = "".join(body.split())
+        lines = [body[i:i + 64] for i in range(0, len(body), 64)]
+        value = f"-----BEGIN{kind}-----\n" + "\n".join(lines) + f"\n-----END{kind}-----"
+    return value
 
 
 TOKEN = None
